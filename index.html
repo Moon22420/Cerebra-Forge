@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cerebra Forge – Arena Shooter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif}
+    body{background:#050814;color:#f5f5f5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+    .wrapper{max-width:1100px;width:100%;background:#101426;border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.7);border:1px solid #272b3f}
+    header{margin-bottom:8px}
+    h1{font-size:1.8rem;margin-bottom:4px}
+    .subtitle{font-size:.9rem;color:#9ea3c4}
+    .top-bar{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0;align-items:center;justify-content:space-between}
+    .stats{display:flex;flex-wrap:wrap;gap:8px}
+    .stat{background:#181c33;padding:6px 10px;border-radius:8px;min-width:105px}
+    .stat-label{font-size:.7rem;text-transform:uppercase;color:#a0a4ba;margin-bottom:2px}
+    .stat-value{font-size:1.05rem;font-weight:700}
+    .stat-value.primary{color:#4caf50}
+    .stat-value.accent{color:#ffb74d}
+    .stat-value.danger{color:#ef5350}
+    .controls-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    button{border:none;cursor:pointer;border-radius:999px;padding:8px 14px;font-size:.9rem;font-weight:600}
+    .btn-main{background:#4caf50;color:#fff}
+    .btn-main:hover{background:#43a047}
+    .btn-secondary{background:#181c33;color:#cfd2e4;border:1px solid #3b3f57}
+    .btn-secondary:hover{border-color:#fff}
+    .layout{display:grid;grid-template-columns:minmax(0,3fr)minmax(0,2fr);gap:12px}
+    @media(max-width:850px){.layout{grid-template-columns:1fr}}
+    .game-area{background:#181c33;border-radius:12px;padding:10px}
+    .canvas-wrap{position:relative;width:100%;max-width:720px;margin:0 auto;background:#020410;border-radius:12px;border:1px solid #22263d;overflow:hidden}
+    canvas{display:block;width:100%;height:auto;background:#020410}
+    .status-line{margin-top:6px;font-size:.85rem;color:#a0a4ba;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px}
+    .controls-hint{font-size:.8rem;color:#c0c4dd;margin-top:6px}
+    .controls-hint span{color:#ffb74d;font-weight:700}
+    .side-panel{background:#181c33;border-radius:12px;padding:10px}
+    .panel-title{font-size:.95rem;font-weight:600;margin-bottom:4px}
+    .panel-text{font-size:.85rem;color:#c0c4dd;margin-bottom:8px;line-height:1.4}
+    .setting-row{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;margin-bottom:6px;color:#c0c4dd}
+    .setting-row input[type=range]{width:150px}
+    .setting-row input[type=checkbox]{transform:scale(1.1)}
+    .ad-box{margin-top:10px;border-radius:10px;border:1px dashed #3b3f57;padding:8px;text-align:center;font-size:.8rem;color:#a0a4ba;background:#101426}
+    .ad-label{font-size:.7rem;text-transform:uppercase;color:#8e94bb;margin-bottom:4px}
+    .highlight{color:#ffb74d;font-weight:600}
+    .info{margin-top:8px;font-size:.8rem;color:#c0c4dd;line-height:1.4}
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <h1>Cerebra Forge</h1>
+      <div class="subtitle">
+        FPS-style arena: drones start dumb and learn how you move and strafe as you survive.
+      </div>
+    </header>
+
+    <div class="top-bar">
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">Score</div>
+          <div class="stat-value primary" id="score">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Best</div>
+          <div class="stat-value accent" id="bestScore">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Wave</div>
+          <div class="stat-value" id="wave">1</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">HP</div>
+          <div class="stat-value danger" id="hp">100</div>
+        </div>
+      </div>
+      <div class="controls-right">
+        <button class="btn-secondary" id="pauseBtn">Pause</button>
+        <button class="btn-main" id="startBtn">Play / Restart</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="game-area">
+        <div class="canvas-wrap">
+          <canvas id="gameCanvas" width="640" height="400"></canvas>
+        </div>
+        <div class="status-line">
+          <div id="statusText">Play, then click the arena. WASD + mouse to move/aim.</div>
+          <div>Diff: <span id="difficultyDisplay">1</span> • AI: <span id="adaptDisplay">0.0x</span></div>
+        </div>
+        <div class="controls-hint">
+          Move <span>WASD / Arrows</span>, aim <span>Mouse</span>, shoot <span>Click / Space</span>.
+        </div>
+        <div class="ad-box" id="adMain">
+          <div class="ad-label">Ad space</div>
+          <div>Replace with AdSense/other ad code when ready.</div>
+        </div>
+      </div>
+
+      <div class="side-panel">
+        <div class="panel-title">Settings</div>
+        <div class="panel-text">
+          Difficulty and AI learning apply instantly.
+        </div>
+
+        <div class="setting-row">
+          <span>Difficulty</span>
+          <input type="range" id="difficultySlider" min="1" max="5" step="1" value="1">
+        </div>
+        <div class="setting-row">
+          <span>AI learning speed</span>
+          <input type="range" id="learningSlider" min="1" max="5" step="1" value="3">
+        </div>
+        <div class="setting-row">
+          <span>Effects</span>
+          <label><input type="checkbox" id="effectsToggle" checked> On</label>
+        </div>
+        <div class="setting-row">
+          <span>Aim assist</span>
+          <label><input type="checkbox" id="aimAssistToggle" checked> On</label>
+        </div>
+
+        <div class="panel-title" style="margin-top:8px;">Info</div>
+        <div class="panel-text">
+          Arena tracks where you move (heatmap) and your strafe bias. Drones use this more as AI level rises.
+        </div>
+
+        <div class="ad-box">
+          <div class="ad-label">Extra</div>
+          <div>Second ad or links here.</div>
+        </div>
+
+        <div class="info">
+          Single-page browser game. Plug in ads and send traffic to monetise.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas=document.getElementById('gameCanvas');
+    const ctx=canvas.getContext('2d');
+    const scoreEl=document.getElementById('score');
+    const bestScoreEl=document.getElementById('bestScore');
+    const waveEl=document.getElementById('wave');
+    const hpEl=document.getElementById('hp');
+    const statusTextEl=document.getElementById('statusText');
+    const difficultyDisplayEl=document.getElementById('difficultyDisplay');
+    const adaptDisplayEl=document.getElementById('adaptDisplay');
+    const startBtn=document.getElementById('startBtn');
+    const pauseBtn=document.getElementById('pauseBtn');
+    const difficultySlider=document.getElementById('difficultySlider');
+    const learningSlider=document.getElementById('learningSlider');
+    const effectsToggle=document.getElementById('effectsToggle');
+    const aimAssistToggle=document.getElementById('aimAssistToggle');
+    const W=canvas.width,H=canvas.height;
+
+    const player={x:W/2,y:H/2,radius:10,speed:3,hp:100,maxHp:100,angle:0};
+    let bullets=[],enemies=[],shards=[],particles=[],stars=[];
+    let score=0,bestScore=0,wave=1;
+    let aiAdaptLevel=0,aiAdaptSpeed=0.00005;
+    let difficultyBase=1,gameActive=false,paused=false,lastTime=0;
+    let enemySpawnTimer=0,shardSpawnTimer=0,waveTimer=0;
+    let input={up:false,down:false,left:false,right:false,firing:false};
+    let autoFire=true,effectsOn=true;
+    let mouseX=W/2,mouseY=H/2,pointerLocked=false;
+
+    const GRID_COLS=16,GRID_ROWS=10;
+    const cellWidth=W/GRID_COLS,cellHeight=H/GRID_ROWS;
+    let heatmap=[];
+    function initHeatmap(){heatmap=[];for(let r=0;r<GRID_ROWS;r++){const row=[];for(let c=0;c<GRID_COLS;c++)row.push(0);heatmap.push(row);}}
+    let strafeHistory=[],STRAFE_HISTORY_MAX=200;
+
+    function dist(x1,y1,x2,y2){const dx=x1-x2,dy=y1-y2;return Math.hypot(dx,dy);}
+    function initStars(){stars=[];for(let i=0;i<80;i++){stars.push({x:Math.random()*W,y:Math.random()*H,size:Math.random()*2+.5,speed:Math.random()*.5+.2});}}
+    function updateStars(dt){const d=dt/16.67;stars.forEach(s=>{s.y+=s.speed*d;if(s.y>H+2){s.y=-2;s.x=Math.random()*W;}});}
+    function drawStars(){ctx.fillStyle='#050812';ctx.fillRect(0,0,W,H);stars.forEach(s=>{ctx.fillStyle='rgba(255,255,255,0.9)';ctx.beginPath();ctx.arc(s.x,s.y,s.size,0,Math.PI*2);ctx.fill();});}
+
+    function loadBestScore(){const s=localStorage.getItem('cerebraForgeBest');if(s){bestScore=parseInt(s,10)||0;bestScoreEl.textContent=bestScore;}}
+    function saveBestScore(){localStorage.setItem('cerebraForgeBest',bestScore.toString());}
+
+    function resetGame(){
+      player.x=W/2;player.y=H/2;player.hp=player.maxHp;
+      bullets=[];enemies=[];shards=[];particles=[];
+      score=0;wave=1;aiAdaptLevel=0;
+      enemySpawnTimer=0;shardSpawnTimer=0;waveTimer=0;
+      scoreEl.textContent=score;waveEl.textContent=wave;hpEl.textContent=player.hp;
+      adaptDisplayEl.textContent=aiAdaptLevel.toFixed(1)+'x';
+      difficultyDisplayEl.textContent=String(difficultyBase);
+      statusTextEl.textContent='Game on.';
+      initStars();initHeatmap();strafeHistory=[];
+    }
+
+    function updatePlayer(dt){
+      const d=dt/16.67;
+      let vx=0,vy=0;
+      if(input.up)vy-=1;if(input.down)vy+=1;if(input.left)vx-=1;if(input.right)vx+=1;
+      const len=Math.hypot(vx,vy);if(len>0){vx/=len;vy/=len;}
+      const sp=player.speed+difficultyBase*.2;
+      player.x+=vx*sp*d;player.y+=vy*sp*d;
+      player.x=Math.max(player.radius+4,Math.min(W-player.radius-4,player.x));
+      player.y=Math.max(player.radius+4,Math.min(H-player.radius-4,player.y));
+      const dx=mouseX-player.x,dy=mouseY-player.y;
+      player.angle=Math.atan2(dy,dx);
+      const c=Math.floor(player.x/cellWidth),r=Math.floor(player.y/cellHeight);
+      if(r>=0&&r<GRID_ROWS&&c>=0&&c<GRID_COLS)heatmap[r][c]+=0.0003*dt;
+      if(gameActive&&!paused&&(input.firing||autoFire))fireBullet();
+    }
+
+    let bulletCooldown=0;
+    function fireBullet(){
+      if(bulletCooldown>0)return;
+      const sp=6.5+difficultyBase*.3;
+      let angle=player.angle;
+      if(aimAssistToggle.checked&&enemies.length>0){
+        let nearest=null,bestD=1e9;
+        enemies.forEach(e=>{const d=dist(player.x,player.y,e.x,e.y);if(d<bestD){bestD=d;nearest=e;}});
+        if(nearest){
+          const dx=nearest.x-player.x,dy=nearest.y-player.y;
+          const ideal=Math.atan2(dy,dx),diff=ideal-angle;
+          angle+=diff*.25;
+        }
+      }
+      const bx=player.x+Math.cos(angle)*(player.radius+4);
+      const by=player.y+Math.sin(angle)*(player.radius+4);
+      bullets.push({x:bx,y:by,vx:Math.cos(angle)*sp,vy:Math.sin(angle)*sp,radius:3,damage:12+difficultyBase*2});
+      bulletCooldown=120;
+      if(effectsOn){
+        for(let i=0;i<4;i++){
+          particles.push({x:bx,y:by,vx:(Math.random()-.5)*.8,vy:(Math.random()-.5)*.8,life:200+Math.random()*200,size:2,color:'rgba(144,202,249,0.9)'});
+        }
+      }
+    }
+
+    function updateBullets(dt){
+      bulletCooldown-=dt;if(bulletCooldown<0)bulletCooldown=0;
+      const d=dt/16.67;
+      bullets.forEach(b=>{b.x+=b.vx*d;b.y+=b.vy*d;});
+      bullets=bullets.filter(b=>b.x>-10&&b.x<W+10&&b.y>-10&&b.y<H+10);
+    }
+
+    function updateParticles(dt){
+      const d=dt/16.67;
+      particles.forEach(p=>{p.x+=p.vx*d;p.y+=p.vy*d;p.life-=dt;});
+      particles=particles.filter(p=>p.life>0);
+    }
+
+    function drawParticles(){
+      if(!effectsOn)return;
+      particles.forEach(p=>{
+        const a=Math.max(0,Math.min(1,p.life/500));
+        ctx.fillStyle=p.color.replace('0.9',a.toFixed(2));
+        ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+      });
+    }
+
+    function drawPlayer(){
+      if(!effectsOn){
+        ctx.fillStyle='#ffeb3b';ctx.beginPath();ctx.arc(player.x,player.y,player.radius,0,Math.PI*2);ctx.fill();return;
+      }
+      const g=ctx.createRadialGradient(player.x,player.y,0,player.x,player.y,player.radius*2.4);
+      g.addColorStop(0,'rgba(255,255,255,0.9)');
+      g.addColorStop(.4,'rgba(129,212,250,0.9)');
+      g.addColorStop(1,'rgba(129,212,250,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(player.x,player.y,player.radius*2.4,0,Math.PI*2);ctx.fill();
+      ctx.save();ctx.translate(player.x,player.y);ctx.rotate(player.angle);
+      const g2=ctx.createLinearGradient(-player.radius,0,player.radius,0);
+      g2.addColorStop(0,'#fff9c4');g2.addColorStop(.5,'#ffeb3b');g2.addColorStop(1,'#ff9800');
+      ctx.fillStyle=g2;ctx.beginPath();
+      ctx.moveTo(-player.radius,-player.radius*.7);
+      ctx.lineTo(player.radius,0);
+      ctx.lineTo(-player.radius,player.radius*.7);
+      ctx.closePath();ctx.fill();ctx.restore();
+    }
+
+    function drawUI(){
+      ctx.fillStyle='rgba(2,4,12,0.85)';ctx.fillRect(0,0,W,24);
+      ctx.fillStyle='#cfd8dc';ctx.font='bold 12px Arial';ctx.textAlign='left';
+      ctx.fillText('Score: '+score,8,16);
+      ctx.fillText('Best: '+bestScore,100,16);
+      ctx.fillText('Wave: '+wave,200,16);
+      ctx.fillText('HP: '+player.hp,280,16);
+    }
+
+    function drawBullets(){
+      ctx.fillStyle='#90caf9';
+      bullets.forEach(b=>{ctx.beginPath();ctx.arc(b.x,b.y,b.radius,0,Math.PI*2);ctx.fill();});
+    }
+
+    function drawOverlay(){
+      if(!gameActive){
+        ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(0,0,W,H);
+        ctx.fillStyle='#fff';ctx.font='bold 24px Arial';ctx.textAlign='center';
+        ctx.fillText('Cerebra Forge',W/2,H/2-20);
+        ctx.font='14px Arial';
+        ctx.fillText('Press Play, then click arena.',W/2,H/2+4);
+      }else if(paused){
+        ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,W,H);
+        ctx.fillStyle='#fff';ctx.font='bold 20px Arial';ctx.textAlign='center';
+        ctx.fillText('Paused',W/2,H/2);
+      }
+    }
+
+    function getHeatAt(x,y){
+      const c=Math.floor(x/cellWidth),r=Math.floor(y/cellHeight);
+      if(r<0||r>=GRID_ROWS||c<0||c>=GRID_COLS)return 0;
+      return heatmap[r][c];
+    }
+    function getStrafeBias(){
+      if(!strafeHistory.length)return 0;
+      let sum=0;for(const v of strafeHistory)sum+=v;
+      return sum/strafeHistory.length;
+    }
+
+    function spawnEnemy(){
+      const edge=Math.floor(Math.random()*4);
+      let x,y;
+      if(edge===0){x=Math.random()*W;y=-20;}
+      else if(edge===1){x=W+20;y=Math.random()*H;}
+      else if(edge===2){x=Math.random()*W;y=H+20;}
+      else{x=-20;y=Math.random()*H;}
+      const t=Math.random();
+      let type='drone',speed=1.2+difficultyBase*.25,hp=12+difficultyBase*3,damage=8+difficultyBase*3,radius=10+Math.random()*4;
+      if(t>0.75){type='elite';speed*=1.5;hp*=2;damage*=1.5;radius*=1.3;}
+      enemies.push({x,y,vx:0,vy:0,radius,type,hp,maxHp:hp,speed,damage});
+    }
+
+    function spawnShard(){
+      const x=Math.random()*(W-40)+20,y=Math.random()*(H-40)+20;
+      shards.push({x,y,radius:6,value:5+Math.floor(difficultyBase*2)});
+    }
+
+    function updateEnemies(dt){
+      const d=dt/16.67,strBias=getStrafeBias();
+      enemies.forEach(e=>{
+        const dx=player.x-e.x,dy=player.y-e.y;
+        const L=Math.hypot(dx,dy)||1;
+        const dirX=dx/L,dirY=dy/L;
+        let sideX=-dirY,sideY=dirX;
+        let adapt=aiAdaptLevel*.6;
+        let sideDir=-Math.sign(strBias||1)*adapt;
+        const fX=e.x+dirX*40,fY=e.y+dirY*40,sX=e.x+sideX*40,sY=e.y+sideY*40;
+        const hF=getHeatAt(fX,fY),hS=getHeatAt(sX,sY);
+        let heatBias=0;if(hS<hF&&aiAdaptLevel>0.3)heatBias=.4*aiAdaptLevel;
+        const sp=(e.speed+difficultyBase*.2)*d;
+        const finalSide=sideDir+heatBias;
+        e.x+=dirX*sp*(.8+.4*aiAdaptLevel);
+        e.y+=dirY*sp*(.8+.4*aiAdaptLevel);
+        e.x+=sideX*sp*finalSide;
+        e.y+=sideY*sp*finalSide;
+      });
+
+      // bullet collisions
+      for(let i=enemies.length-1;i>=0;i--){
+        const e=enemies[i];
+        for(let j=bullets.length-1;j>=0;j--){
+          const b=bullets[j];
+          if(dist(e.x,e.y,b.x,b.y)<e.radius+b.radius){
+            e.hp-=b.damage;bullets.splice(j,1);
+            if(effectsOn){
+              particles.push({x:b.x,y:b.y,vx:(Math.random()-.5)*.8,vy:(Math.random()-.5)*.8,life:250,size:3,color:'rgba(255,138,101,0.9)'});
+            }
+            if(e.hp<=0){
+              score+=(e.type==='elite'?20:10);
+              scoreEl.textContent=score;
+              if(score>bestScore){bestScore=score;bestScoreEl.textContent=bestScore;saveBestScore();}
+              if(effectsOn){
+                for(let k=0;k<12;k++){
+                  particles.push({x:e.x,y:e.y,vx:(Math.random()-.5)*1.4,vy:(Math.random()-.5)*1.4,life:300+Math.random()*400,size:2+Math.random()*2,color:'rgba(255,183,77,0.9)'});
+                }
+              }
+              enemies.splice(i,1);
+              break;
+            }
+          }
+        }
+      }
+
+      // enemy hit player
+      for(let i=enemies.length-1;i>=0;i--){
+        const e=enemies[i];
+        if(dist(e.x,e.y,player.x,player.y)<e.radius+player.radius){
+          player.hp-=e.damage;hpEl.textContent=Math.max(0,player.hp);
+          enemies.splice(i,1);
+          if(player.hp<=0){gameOver();return;}
+        }
+      }
+    }
+
+    function updateShards(dt){
+      for(let i=shards.length-1;i>=0;i--){
+        const s=shards[i];
+        if(dist(s.x,s.y,player.x,player.y)<s.radius+player.radius){
+          score+=s.value;scoreEl.textContent=score;
+          if(score>bestScore){bestScore=score;bestScoreEl.textContent=bestScore;saveBestScore();}
+          player.hp=Math.min(player.maxHp,player.hp+4);hpEl.textContent=player.hp;
+          shards.splice(i,1);
+        }
+      }
+    }
+
+    function drawEnemies(){
+      enemies.forEach(e=>{
+        const g=ctx.createRadialGradient(e.x-3,e.y-3,0,e.x,e.y,e.radius);
+        if(e.type==='elite'){g.addColorStop(0,'#ffebee');g.addColorStop(.4,'#ef5350');g.addColorStop(1,'#b71c1c');}
+        else{g.addColorStop(0,'#ffcdd2');g.addColorStop(.4,'#e57373');g.addColorStop(1,'#c62828');}
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(e.x,e.y,e.radius,0,Math.PI*2);ctx.fill();
+      });
+    }
+
+    function drawShards(){
+      ctx.fillStyle='#81d4fa';
+      shards.forEach(s=>{
+        ctx.beginPath();
+        ctx.moveTo(s.x,s.y-s.radius);
+        ctx.lineTo(s.x+s.radius,s.y);
+        ctx.lineTo(s.x,s.y+s.radius);
+        ctx.lineTo(s.x-s.radius,s.y);
+        ctx.closePath();ctx.fill();
+      });
+    }
+
+    function updateAI(dt){
+      const d=dt;
+      aiAdaptLevel+=aiAdaptSpeed*d;
+      const maxLevel=0.3+0.15*(difficultyBase-1);
+      if(aiAdaptLevel>maxLevel)aiAdaptLevel=maxLevel;
+      adaptDisplayEl.textContent=aiAdaptLevel.toFixed(1)+'x';
+    }
+
+    function update(dt){
+      if(!gameActive||paused)return;
+      updateStars(dt);
+      updatePlayer(dt);
+      updateBullets(dt);
+      updateParticles(dt);
+      updateEnemies(dt);
+      updateShards(dt);
+      updateAI(dt);
+
+      enemySpawnTimer+=dt;
+      shardSpawnTimer+=dt;
+      waveTimer+=dt;
+
+      const enemyInterval=Math.max(250,900-aiAdaptLevel*400-difficultyBase*100);
+      if(enemySpawnTimer>enemyInterval){enemySpawnTimer=0;spawnEnemy();}
+      const shardInterval=Math.max(600,2000-wave*120);
+      if(shardSpawnTimer>shardInterval){shardSpawnTimer=0;if(Math.random()<.7)spawnShard();}
+      if(waveTimer>20000){
+        waveTimer=0;wave++;waveEl.textContent=wave;
+        statusTextEl.textContent='Wave '+wave;
+      }
+    }
+
+    function draw(){
+      drawStars();
+      drawShards();
+      drawEnemies();
+      drawBullets();
+      drawParticles();
+      drawPlayer();
+      drawUI();
+      drawOverlay();
+    }
+
+    function loop(ts){
+      if(!lastTime)lastTime=ts;
+      const dt=ts-lastTime;lastTime=ts;
+      update(dt);draw();
+      requestAnimationFrame(loop);
+    }
+
+    function startGame(){gameActive=true;paused=false;resetGame();}
+    function gameOver(){gameActive=false;paused=false;statusTextEl.textContent='Game over. Score '+score;}
+
+    function togglePause(){if(!gameActive)return;paused=!paused;statusTextEl.textContent=paused?'Paused.':'Game on.';}
+
+    document.addEventListener('keydown',e=>{
+      if(e.key==='w'||e.key==='W'||e.key==='ArrowUp')input.up=true;
+      if(e.key==='s'||e.key==='S'||e.key==='ArrowDown')input.down=true;
+      if(e.key==='a'||e.key==='A'||e.key==='ArrowLeft')input.left=true;
+      if(e.key==='d'||e.key==='D'||e.key==='ArrowRight')input.right=true;
+      if(e.code==='Space'){e.preventDefault();if(!gameActive)startGame();input.firing=true;}
+      if(e.key==='p'||e.key==='P')togglePause();
+    });
+    document.addEventListener('keyup',e=>{
+      if(e.key==='w'||e.key==='W'||e.key==='ArrowUp')input.up=false;
+      if(e.key==='s'||e.key==='S'||e.key==='ArrowDown')input.down=false;
+      if(e.key==='a'||e.key==='A'||e.key==='ArrowLeft')input.left=false;
+      if(e.key==='d'||e.key==='D'||e.key==='ArrowRight')input.right=false;
+      if(e.code==='Space')input.firing=false;
+    });
+
+    function handleMouseMove(e){
+      const rect=canvas.getBoundingClientRect();
+      mouseX=(e.clientX-rect.left)*(W/rect.width);
+      mouseY=(e.clientY-rect.top)*(H/rect.height);
+    }
+    canvas.addEventListener('mousemove',handleMouseMove);
+
+    canvas.addEventListener('mousedown',()=>{
+      if(!gameActive)startGame();
+      input.firing=true;
+      if(!pointerLocked&&canvas.requestPointerLock)canvas.requestPointerLock();
+    });
+    document.addEventListener('mouseup',()=>{input.firing=false;});
+    document.addEventListener('pointerlockchange',()=>{pointerLocked=(document.pointerLockElement===canvas);});
+
+    startBtn.addEventListener('click',()=>startGame());
+    pauseBtn.addEventListener('click',()=>togglePause());
+    difficultySlider.addEventListener('input',()=>{
+      difficultyBase=parseInt(difficultySlider.value,10)||1;
+      difficultyDisplayEl.textContent=String(difficultyBase);
+    });
+    learningSlider.addEventListener('input',()=>{
+      const v=parseInt(learningSlider.value,10)||3;
+      aiAdaptSpeed=0.00003*v;
+    });
+    effectsToggle.addEventListener('change',()=>{effectsOn=effectsToggle.checked;});
+    aimAssistToggle.addEventListener('change',()=>{autoFire=aimAssistToggle.checked;});
+
+    loadBestScore();initStars();initHeatmap();requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
